@@ -3,6 +3,7 @@ using MessengerApplication.Parameters;
 using MessengerApplication.Services;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 
 namespace MessengerApplication.Controllers;
 [EnableCors("CorsPolicy")]
@@ -38,13 +39,11 @@ public class UserController : ControllerBase
    {
       var user = new User
       {
-         Username = parameter.Username,
-         UserId = parameter.Id
+         UserName = parameter.UserName,
       };
       
       await _usersService.CreateAsync(user);
-
-      return Ok();
+      return Ok(user);
    }
 
 }

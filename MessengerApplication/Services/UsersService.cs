@@ -23,20 +23,20 @@ public class UsersService
 
     public async Task<List<User>> GetAllExceptAsync(string userId)
     {
-        var users = await _users.Find(x=>x.UserId != userId).ToListAsync();
+        var users = await _users.Find(x=>x.Id != userId).ToListAsync();
 
         return users;
     }
     
-    public async Task<User> GetUserAsync(string userId) => _users.Find(x => x.UserId.Equals(userId)).FirstOrDefault();
+    public async Task<User> GetUserAsync(string userId) => _users.Find(x => x.Id.Equals(userId)).FirstOrDefault();
     
-    public User GetUser(string userId) => _users.Find(x => x.UserId.Equals(userId)).FirstOrDefault();
+    public User GetUser(string userId) => _users.Find(x => x.Id.Equals(userId)).FirstOrDefault();
     
     public async Task EditUsersChatsAsync(AddChatDto chatDto)
     {
-        var user = await _users.Find(x=>x.UserId.Equals(chatDto.UserId)).SingleAsync();
+        var user = await _users.Find(x=>x.Id.Equals(chatDto.UserId)).SingleAsync();
         user.Chats.Add(chatDto.ChatId);
 
-        await _users.ReplaceOneAsync(x=>x.UserId.Equals(chatDto.UserId), user);
+        await _users.ReplaceOneAsync(x=>x.Id.Equals(chatDto.UserId), user);
     }
 }
