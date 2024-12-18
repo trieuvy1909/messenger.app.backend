@@ -39,4 +39,8 @@ public class UsersService
 
         await _users.ReplaceOneAsync(x=>x.Id.Equals(chatDto.UserId), user);
     }
+    public async Task<User?> GetUserByUsernameAsync(string username)
+    {
+        return await _users.Find(u => u.UserName == username).FirstOrDefaultAsync();
+    }
 }
