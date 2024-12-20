@@ -136,4 +136,40 @@ public class ChatController : ControllerBase
       return StatusCode(500, "An unexpected error occurred: " + ex.Message);
     }
   }
+
+  [Authorize]
+  [HttpDelete("delete-user-from-chat")]
+  public async Task<IActionResult> DeleteUserFromChat(ChatDto parameter)
+  {
+    var userId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+    if (string.IsNullOrEmpty(userId))
+    {
+      return BadRequest("You must be logged in to add a user to a chat.");
+    }
+    if (string.IsNullOrEmpty(parameter.ChatId))
+    {
+      return BadRequest("Chat ID is required.");
+    }
+    if (parameter.Recipients == null || parameter.Recipients.Count == 0)
+    {
+      return BadRequest("Recipients are required.");
+    }
+    try
+    {
+      await _chatsService.DeleteUserFromChatAsync(parameter);
+      return Ok(new { message = "User deleted to chat" });
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+      return StatusCode(403, new { message = ex.Message });
+    }
+    catch (ArgumentException ex)
+    {
+      return NotFound(ex.Message);
+    }
+    catch (Exception ex)
+    {
+      return StatusCode(500, "An unexpected error occurred: " + ex.Message);
+    }
+  }
 }

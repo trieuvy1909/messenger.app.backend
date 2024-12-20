@@ -166,4 +166,30 @@ public class ChatsService
         }
         await _chats.ReplaceOneAsync(x => x.Id.Equals(parameter.ChatId), chat);
     }
+    public async Task DeleteUserFromChatAsync(ChatDto parameter)
+    {
+        var chat = await _chats.Find(x => x.Id.Equals(parameter.ChatId)).FirstOrDefaultAsync();
+        if (chat == null)
+        {
+            throw new ArgumentException("Chat not found.");
+        }
+
+        foreach (var recipient in parameter.Recipients)
+        {
+            if (!chat.Members.Any(user => user.Id.Equals(recipient)))
+            {
+                throw new ArgumentException("User is not in chat.");
+            }
+            chat.Members.RemoveAll(member => member.Id == recipient);
+        }
+        await _chats.ReplaceOneAsync(x => x.Id.Equals(parameter.ChatId), chat);
+        foreach (var recipient in parameter.Recipients)
+        {
+            await _usersService.DeleteUsersChatsAsync(new AddChatDto
+            {
+                UserId = recipient,
+                ChatId = chat.Id
+            });
+        }
+    }
 }
