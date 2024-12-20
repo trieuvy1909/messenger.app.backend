@@ -138,4 +138,32 @@ public class ChatsService
             .ToListAsync();
         return chats;
     }
+    public async Task AddUserToChatAsync(ChatDto parameter)
+    {
+        var chat = await _chats.Find(x => x.Id.Equals(parameter.ChatId)).FirstOrDefaultAsync();
+        if (chat == null)
+        {
+            throw new ArgumentException("Chat not found.");
+        }
+
+        foreach (var recipient in parameter.Recipients)
+        {
+            if (chat.Members.Any(user => user.Id.Equals(recipient)))
+            {
+                throw new ArgumentException("User already in chat.");
+            }
+            var user = await _usersService.GetUserSummaryAsync(recipient);
+            if (user == null)
+            {
+                throw new ArgumentException("User not found.");
+            }
+            chat.Members.Add(user);
+            await _usersService.EditUsersChatsAsync(new AddChatDto
+            {
+                UserId = user.Id,
+                ChatId = chat.Id
+            });
+        }
+        await _chats.ReplaceOneAsync(x => x.Id.Equals(parameter.ChatId), chat);
+    }
 }
