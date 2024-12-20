@@ -22,22 +22,23 @@ public class MessageController : ControllerBase
    [HttpPost("send")]
    public async Task<IActionResult> SendMessage(MessageDto parameter)
    {
-      var senderId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
-      if (string.IsNullOrWhiteSpace(senderId))
+      try
       {
-         return BadRequest("You must be logged in to send messages.");
-      }
-      var sender = await _usersService.GetUserSummaryAsync(senderId);
-      var message = new MessageDto
-      {
-         ChatId = parameter.ChatId,
-         Payload = parameter.Payload,
-         Sender = sender
-      };
+         var senderId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+         if (string.IsNullOrWhiteSpace(senderId))
+         {
+            return BadRequest("You must be logged in to send messages.");
+         }
 
-      await _messagesService.CreateMessageAsync(message);
-      
-      return Ok();
+         var sender = await _usersService.GetUserSummaryAsync(senderId);
+         parameter.Sender = sender;
+         await _messagesService.CreateMessageAsync(parameter);
+      } 
+      catch (Exception ex)
+      {
+         return BadRequest(ex.Message);
+      }
+      return Ok("Gửi tin nhắn thành công");
    }
 
    [HttpGet("receive")]
@@ -46,5 +47,27 @@ public class MessageController : ControllerBase
       var messages = await _messagesService.GetMessagesAsync(chatId);
 
       return Ok(messages);
+   }
+   [HttpPost("send-all")]
+   public async Task<IActionResult> SendMessageToAll(MessageDto parameter)
+   {
+      try
+      {
+         var senderId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+         if (string.IsNullOrWhiteSpace(senderId))
+         {
+            return BadRequest("You must be logged in to send messages.");
+         }
+
+         var sender = await _usersService.GetUserSummaryAsync(senderId);
+         parameter.Sender = sender;
+         
+         await _messagesService.CreateMessageToAllAsync(parameter);
+      } 
+      catch (Exception ex)
+      {
+         return BadRequest(ex.Message);
+      }
+      return Ok("Gửi tin nhắn thành công");
    }
 }

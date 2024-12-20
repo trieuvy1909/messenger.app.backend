@@ -40,5 +40,11 @@ namespace MessengerApplication.Helper
 
             return jwt;
         }
+        public static string GetUserIdFromToken(string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jsonToken = handler.ReadToken(token) as JwtSecurityToken;
+            return jsonToken?.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+        }
     }
 }

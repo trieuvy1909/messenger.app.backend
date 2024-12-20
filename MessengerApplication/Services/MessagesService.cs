@@ -30,27 +30,45 @@ public class MessagesService
             Sender = message.Sender,
         };
 
-        var recipientIds = await GetRecipientId(message.Sender, message.ChatId);
+        var recipients = await GetRecipient(message.Sender, message.ChatId);
 
         await _messages.InsertOneAsync(newMessage);
 
         try
         {
-            if (recipientIds.Count == 1)
+            if (recipients.Count == 1)
             {
-                await _chatHub.SendMessageAsync(recipientIds.First(), newMessage.Payload);
+                newMessage.Recipient = recipients.First();
+                await _chatHub.SendMessageAsync(newMessage);
             }
-            else if(recipientIds.Count > 1)
-            {
-                await _chatHub.SendMessageToUsers(recipientIds, newMessage.Payload);
-            }
+            // else if(recipients.Count > 1)
+            // {
+            //     await _chatHub.SendMessageToUsers(recipients, newMessage.Payload);
+            // }
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            throw new ArgumentException(ex.Message);
         }
     }
-    
+    public async Task CreateMessageToAllAsync(MessageDto message)
+    {
+        var newMessage = new Message
+        {
+            ChatId = message.ChatId,
+            Payload = message.Payload,
+            Sender = message.Sender,
+        };
+        
+        try
+        {
+            await _chatHub.SendMessageToAll(newMessage);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException(ex.Message);
+        }
+    }
     public async Task<List<Message>> GetMessagesAsync(string chatId)
     {
         return await _messages.Find(x => x.ChatId.Equals(chatId))
@@ -58,7 +76,7 @@ public class MessagesService
             .ToListAsync();
     }
     
-    public async Task<List<string>> GetRecipientId(UserSummary sender, string chatId)
+    public async Task<List<UserSummary>> GetRecipient(UserSummary sender, string chatId)
     {      
         var chat = _chats.Find(x => x.Id.Equals(chatId)).FirstOrDefault();
 
@@ -66,7 +84,6 @@ public class MessagesService
         {
             return chat.Members
                 .Where(member => member.Id != sender.Id)
-                .Select(member=>member.Id)
                 .ToList();
         }
         else
