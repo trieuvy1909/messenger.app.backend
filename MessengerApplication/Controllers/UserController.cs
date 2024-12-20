@@ -1,13 +1,10 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using MessengerApplication.Dtos;
+﻿using MessengerApplication.Dtos;
 using MessengerApplication.Models;
-using MessengerApplication.Parameters;
 using MessengerApplication.Services;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using MessengerApplication.Helper;
 using Microsoft.AspNetCore.Authorization;
-using MongoDB.Bson;
 
 namespace MessengerApplication.Controllers;
 [EnableCors("CorsPolicy")]
@@ -35,11 +32,16 @@ public class UserController : ControllerBase
 
    [HttpGet("users")]
    [Authorize]
-   public async Task<IActionResult> GetAllUsersExcept(string userId)
+   public async Task<IActionResult> GetAllUsers(int page = 1, int pageSize = 10)
    {
-      var users = await _usersService.GetAllExceptAsync(userId);
-
-      return Ok(users);
+      var (users, totalCount) = await _usersService.GetAllAsync(page, pageSize);
+      return Ok(new 
+      {
+         Users = users,
+         TotalCount = totalCount,
+         TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+         CurrentPage = page
+      });
    }
 
    [HttpPost("create")]
@@ -67,14 +69,15 @@ public class UserController : ControllerBase
       var newUser = new User
       {
          UserName = parameter.UserName.Trim(),
-         FullName = parameter.FullName.Trim(),
-         Password = PasswordHasher.HashPassword(parameter.Password)
+         Profile = new Profile(){FullName = parameter.FullName.Trim()},
+         Password = PasswordHasher.HashPassword(parameter.Password),
       };
 
       await _usersService.CreateAsync(newUser);
 
       return CreatedAtAction(nameof(GetUser), new { id = newUser.Id }, "User registered successfully.");
    }
+   
    [HttpPost("login")]
    public async Task<IActionResult> Login(UserDto parameter)
    {
@@ -98,6 +101,13 @@ public class UserController : ControllerBase
       return Ok(new { message = "Login successful.", token });
    }
    
+   [HttpGet("logout")]
+   public IActionResult Logout()
+   {
+      Response.Cookies.Delete("access_token");
+      return Ok(new { message = "Logout successful." });
+   }
+
    [HttpGet("my-info")]
    [Authorize]
    public async Task<IActionResult> GetMyInfo()

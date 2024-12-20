@@ -11,52 +11,67 @@ public class MessagesService
 {
     private readonly IMongoCollection<Message> _messages;
     private readonly IMongoDatabase _mongoDatabase;
-    private readonly IHubContext<ChatHub> _hubContext;
-    private readonly ChatsService _chatsService;
-    private readonly IMemoryCache _memoryCache;
-    public MessagesService(DatabaseProviderService databaseProvider, IHubContext<ChatHub> hubContext, ChatsService chatsService, IMemoryCache memoryCache)
+    private readonly IMongoCollection<Chat> _chats;
+    private readonly ChatHub _chatHub;
+    public MessagesService(DatabaseProviderService databaseProvider, IHubContext<ChatHub> hubContext, ChatsService chatsService, IMemoryCache memoryCache, ChatHub chatHub)
     {
         _mongoDatabase = databaseProvider.GetAccess();
         _messages = _mongoDatabase.GetCollection<Message>("Messages");
-        _hubContext = hubContext;
-        _chatsService = chatsService;
-        _memoryCache = memoryCache;
+        _chats = _mongoDatabase.GetCollection<Chat>("Chats");
+        _chatHub = chatHub;
     }
 
-    public async Task CreateMessageAsync(CreateMessageDto message)
+    public async Task CreateMessageAsync(MessageDto message)
     {
         var newMessage = new Message
         {
             ChatId = message.ChatId,
             Payload = message.Payload,
             Sender = message.Sender,
-            Date = DateTime.Now
         };
 
-        string recipient = await _chatsService.GetRecipientId(message.Sender, message.ChatId);
+        var recipientIds = await GetRecipientId(message.Sender, message.ChatId);
 
         await _messages.InsertOneAsync(newMessage);
 
         try
         {
-            await SendMessageAsync(recipient, newMessage);
-        } catch(Exception ex)
+            if (recipientIds.Count == 1)
+            {
+                await _chatHub.SendMessageAsync(recipientIds.First(), newMessage.Payload);
+            }
+            else if(recipientIds.Count > 1)
+            {
+                await _chatHub.SendMessageToUsers(recipientIds, newMessage.Payload);
+            }
+        }
+        catch (Exception ex)
         {
-            Console.WriteLine("No connection");
+            Console.WriteLine(ex.Message);
         }
     }
-
-    public async Task SendMessageAsync(string userId, Message message)
+    
+    public async Task<List<Message>> GetMessagesAsync(string chatId)
     {
-        string connectionId = (string)_memoryCache.Get(userId);
-
-        if (connectionId == "") throw new ArgumentException("No user connected.");
-
-        await _hubContext.Clients.Client(connectionId).SendAsync("SendMessage", message);
-    }
-
-    public async Task<List<Message>> GetMessagesAsync(string chatId) 
-        => await _messages.Find(x => x.ChatId.Equals(chatId))
-            .SortBy(x => x.Date)
+        return await _messages.Find(x => x.ChatId.Equals(chatId))
+            .SortBy(x => x.CreatedAt)
             .ToListAsync();
+    }
+    
+    public async Task<List<string>> GetRecipientId(UserSummary sender, string chatId)
+    {      
+        var chat = _chats.Find(x => x.Id.Equals(chatId)).FirstOrDefault();
+
+        if(chat is not null)
+        {
+            return chat.Members
+                .Where(member => member.Id != sender.Id)
+                .Select(member=>member.Id)
+                .ToList();
+        }
+        else
+        {
+            throw new ArgumentException("No chat exists");
+        }
+    }
 }

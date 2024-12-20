@@ -21,15 +21,49 @@ public class UsersService
     public async Task CreateAsync(User newUser) =>
         await _users.InsertOneAsync(newUser);
 
-    public async Task<List<User>> GetAllExceptAsync(string userId)
+    public async Task<(List<User> Users, long TotalCount)> GetAllAsync(int page, int pageSize)
     {
-        var users = await _users.Find(x=>x.Id != userId).ToListAsync();
-
-        return users;
+        var users = await _users
+            .Find(new BsonDocument())
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .Project(u => new User
+            {
+                Id = u.Id,
+                UserName = u.UserName,
+                Profile = u.Profile,
+                Chats = u.Chats,
+                Status = u.Status
+            })
+            .ToListAsync();
+        var totalCount = await _users.CountDocumentsAsync(new BsonDocument());
+        return (users, totalCount);
     }
     
-    public async Task<User> GetUserAsync(string userId) => _users.Find(x => x.Id.Equals(userId)).FirstOrDefault();
-    
+    public async Task<User> GetUserAsync(string userId)
+    {
+        return _users.Find(x => x.Id.Equals(userId))
+                    .Project(u => new User
+                    {
+                        Id = u.Id,
+                        UserName = u.UserName,
+                        Profile = u.Profile,
+                        Status = u.Status
+                    })
+                    .FirstOrDefault();
+    }
+    public async Task<UserSummary> GetUserSummaryAsync(string userId)
+    {
+        return _users.Find(x => x.Id.Equals(userId))
+            .Project(u => new UserSummary
+            {
+                Id = u.Id,
+                UserName = u.UserName,
+                Profile = u.Profile,
+                Status = u.Status,
+            })
+            .FirstOrDefault();
+    }
     public User GetUser(string userId) => _users.Find(x => x.Id.Equals(userId)).FirstOrDefault();
     
     public async Task EditUsersChatsAsync(AddChatDto chatDto)
@@ -38,6 +72,19 @@ public class UsersService
         user.Chats.Add(chatDto.ChatId);
 
         await _users.ReplaceOneAsync(x=>x.Id.Equals(chatDto.UserId), user);
+    }
+    public async Task DeleteUsersChatsAsync(AddChatDto chatDto)
+    {
+        var user = await _users.Find(x=>x.Id.Equals(chatDto.UserId)).SingleAsync();
+        if (user.Chats.Contains(chatDto.ChatId))
+        {
+            user.Chats.Remove(chatDto.ChatId); // Loại bỏ ChatId khỏi danh sách Chats
+        }
+        else
+        {
+            throw new ArgumentException("Chat ID not found in user's chats");
+        }
+        await _users.ReplaceOneAsync(x => x.Id.Equals(chatDto.UserId), user);
     }
     public async Task<User?> GetUserByUsernameAsync(string username)
     {

@@ -1,8 +1,9 @@
 ﻿using MessengerApplication.Dtos;
-using MessengerApplication.Parameters;
 using MessengerApplication.Services;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace MessengerApplication.Controllers;
 [EnableCors("CorsPolicy")]
@@ -11,21 +12,27 @@ namespace MessengerApplication.Controllers;
 public class MessageController : ControllerBase
 {
    private readonly MessagesService _messagesService;
-   
-   public MessageController(MessagesService messagesService)
+   private readonly UsersService _usersService;
+   public MessageController(MessagesService messagesService, UsersService usersService)
    {
       _messagesService = messagesService;
+      _usersService = usersService;
    }
    
-   [HttpPost("create")]
-   public async Task<IActionResult> CreateMessage(CreateMessageParameter parameter)
+   [HttpPost("send")]
+   public async Task<IActionResult> SendMessage(MessageDto parameter)
    {
-
-      var message = new CreateMessageDto
+      var senderId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+      if (string.IsNullOrWhiteSpace(senderId))
+      {
+         return BadRequest("You must be logged in to send messages.");
+      }
+      var sender = await _usersService.GetUserSummaryAsync(senderId);
+      var message = new MessageDto
       {
          ChatId = parameter.ChatId,
          Payload = parameter.Payload,
-         Sender = parameter.Sender
+         Sender = sender
       };
 
       await _messagesService.CreateMessageAsync(message);
@@ -33,8 +40,8 @@ public class MessageController : ControllerBase
       return Ok();
    }
 
-   [HttpGet("get")]
-   public async Task<IActionResult> GetMessages(string chatId)
+   [HttpGet("receive")]
+   public async Task<IActionResult> ReceiveMessages(string chatId)
    {
       var messages = await _messagesService.GetMessagesAsync(chatId);
 

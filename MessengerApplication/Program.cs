@@ -41,6 +41,7 @@ builder.Services.AddScoped<DatabaseProviderService>();
 builder.Services.AddScoped<ChatsService>();
 builder.Services.AddScoped<MessagesService>();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<ChatHub>();
 builder.Services.AddRouting();
 builder.Services.AddMemoryCache();
 builder.Services.AddAuthentication(options =>
@@ -63,11 +64,10 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            var token = context.HttpContext.Request.Cookies["jwt_token"];
-            if (!string.IsNullOrEmpty(token))
-            {
-                context.Token = token;
-            }
+            // Kiểm tra cookie và header Authorization
+            context.Token = context.HttpContext.Request.Cookies["access_token"]
+                            ?? context.HttpContext.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
+
             return Task.CompletedTask;
         }
     };

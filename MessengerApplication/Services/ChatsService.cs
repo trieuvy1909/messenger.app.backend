@@ -1,6 +1,5 @@
 ﻿using MessengerApplication.Dtos;
 using MessengerApplication.Models;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
 namespace MessengerApplication.Services;
@@ -20,82 +19,102 @@ public class ChatsService
         _mongoDatabase = databaseProvider.GetAccess();
         _chats = _mongoDatabase.GetCollection<Chat>("Chats");
     }
-    public async Task<List<Chat>> GetUsersChatsAsync(string userId)
+    public async Task<List<Chat>> GetChatsOfUsersAsync(string userId)
     {
-        var user = await _usersService.GetUserAsync(userId);
-        
-        FilterDefinition<Chat> filter = Builders<Chat>.Filter.In("Id", user.Chats);
-        
-        var chats = await _chats.Find(filter).ToListAsync();
-
+        var filter = Builders<Chat>.Filter.ElemMatch(chat => chat.Members, user => user.Id == userId);
+        var chats = await _chats.Find(filter)
+            .Project(u => new Chat
+            {
+                Id = u.Id,
+                Title = u.Title,
+                CreatedBy = u.CreatedBy,
+                CreatedAt = u.CreatedAt
+            })
+            .ToListAsync();
         if (chats.Count is 0) throw new ArgumentException("No chats yet");
-        
         return chats;
     }
+    
+    public async Task CreateChatAsync(ChatDto chatDto)
+    {
+        // Kiểm tra xem chat giữa các người dùng đã tồn tại chưa
+        var filterOne = Builders<Chat>.Filter.And(
+            Builders<Chat>.Filter.Eq("Members.UserId", chatDto.Initiator),
+            Builders<Chat>.Filter.Eq("Members.UserId", chatDto.Recipients)
+        );
+    
+        // Kiểm tra nếu chat đã tồn tại thì throw exception
+        var existingChat = await _chats.Find(filterOne).FirstOrDefaultAsync();
+        if (existingChat != null) 
+            throw new ArgumentException("Chat already created");
 
-    public async Task<string> GetRecipientId(string sender, string chatId)
-    {      
-        var chat = _chats.Find(x => x.Id.Equals(chatId)).FirstOrDefault();
+        // Lấy người dùng từ dịch vụ
+        var users = new List<UserSummary>();
 
-        Console.WriteLine(chat);
-        if(chat is not null) {
-            if (chat.Users[0].Id != sender)
+        // Thêm người khởi tạo và người nhận vào danh sách người dùng
+        var initiator = new UserSummary();
+        if (!string.IsNullOrEmpty( chatDto.Initiator))
+        {
+            initiator = await _usersService.GetUserSummaryAsync(chatDto.Initiator);
+            users.Add(initiator);
+        }
+
+        if (chatDto.Recipients != null)
+        {
+            foreach (var recipientId in chatDto.Recipients)
             {
-                return chat.Users[0].Id;
-            } else
-            {
-                return chat.Users[1].Id;
+                var recipient = await _usersService.GetUserSummaryAsync(recipientId);
+                users.Add(recipient);
             }
         }
-        else
-        {
-            throw new ArgumentException("No chat exists");
-        }
-    }
-
-    public async Task CreateChatAsync(CreateChatDto createChatDto)
-    {
-        FilterDefinition<Chat> filterOne = (Builders<Chat>.Filter.Eq("Users.0.UserId", createChatDto.Initiator)
-                                           | Builders<Chat>.Filter.Eq("Users.1.UserId", createChatDto.Initiator))
-                                           & (Builders<Chat>.Filter.Eq("Users.0.UserId", createChatDto.Recipient)
-                                           | Builders<Chat>.Filter.Eq("Users.1.UserId", createChatDto.Recipient));
-        var initCheck = _chats.Find(filterOne).FirstOrDefault();
         
-        // FilterDefinition<Chat> filterTwo = Builders<Chat>.Filter.Eq("Users.0.UserId", createChatDto.Recipient)
-        //                                    | Builders<Chat>.Filter.Eq("Users.1.UserId", createChatDto.Recipient);
-        // var recCheck = _chats.Find(filterTwo).FirstOrDefault();
-        
-        if(initCheck is not null) throw new ArgumentException("Chat already created");
-        
-        var users = new List<User>();
-
-        var initiator = await _usersService.GetUserAsync(createChatDto.Initiator);
-        var recipient = await _usersService.GetUserAsync(createChatDto.Recipient);
-        
-        users.Add(initiator);
-        users.Add(recipient);
-
+        // Tạo đối tượng chat với các người dùng
         var chat = new Chat
         {
-            Users = users
+            Title = chatDto.Title,
+            Members = users,
+            CreatedBy = initiator
         };
 
+        // Thêm chat vào cơ sở dữ liệu
         await _chats.InsertOneAsync(chat);
 
-        var chatId = _chats.Find(x=> x.Id.Equals(chat.Id)).FirstOrDefault();
+        // Cập nhật thông tin chat cho tất cả người tham gia
+        foreach (var chatDtoForUser in chat.Members.Select(user => new AddChatDto()
+                 {
+                     UserId = user.Id,
+                     ChatId = chat.Id
+                 }))
+        {
+            await _usersService.EditUsersChatsAsync(chatDtoForUser);
+        }
+    }
+    public async Task DeleteChatAsync(string chatId, string userId)
+    {
+        // Tìm chat trong cơ sở dữ liệu
+        var chat = await _chats.Find(x => x.Id != null && x.Id.Equals(chatId)).FirstOrDefaultAsync();
+        if (chat == null)
+        {
+            throw new ArgumentException("Chat not found.");
+        }
 
-        var chatInitiator = new AddChatDto
+        var isMember = chat.Members.Any(user => user.Id.Equals(userId));
+        if (!isMember)
         {
-            UserId = createChatDto.Initiator,
-            ChatId = chatId.Id
-        };
-        var chatRecipient = new AddChatDto
-        {
-            UserId = createChatDto.Recipient,
-            ChatId = chatId.Id
-        };
+            throw new UnauthorizedAccessException("You are not authorized to delete this chat.");
+        }
         
-        await _usersService.EditUsersChatsAsync(chatInitiator);
-        await _usersService.EditUsersChatsAsync(chatRecipient);
+        // Xóa chat khỏi cơ sở dữ liệu
+        await _chats.DeleteOneAsync(x => x.Id.Equals(chatId));
+
+        // Cập nhật lại dữ liệu của các người dùng để loại bỏ chat đã xóa
+        foreach (var chatDtoForUser in chat.Members.Select(user => new AddChatDto
+             {
+                 UserId = user.Id,
+                 ChatId = chatId
+             }))
+        {
+            await _usersService.DeleteUsersChatsAsync(chatDtoForUser);
+        }
     }
 }

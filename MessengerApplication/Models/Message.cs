@@ -9,8 +9,8 @@ public class Message
     [BsonRepresentation(BsonType.ObjectId)]
     public string? Id { get; set; }
     public string ChatId { get; set; } = null!;
-    public string Sender { get; set; } = null!;
+    public UserSummary Sender { get; set; } = null!;
     public string Payload { get; set; } = null!;
     [BsonRepresentation(BsonType.DateTime)]
-    public DateTime Date { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 }

@@ -9,5 +9,8 @@ public class Chat
     [BsonRepresentation(BsonType.ObjectId)]
     public string? Id { get; set; }
 
-    public List<User> Users { get; set; } = new ();
+    public string? Title { get; set; }
+    public List<UserSummary> Members { get; set; } = new ();
+    public UserSummary? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 }

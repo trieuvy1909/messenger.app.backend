@@ -16,7 +16,7 @@ namespace MessengerApplication.Helper
             var claims = new[]
             {
                 new Claim("Id", user.Id),
-                new Claim("Fullname", user.FullName),
+                new Claim("Fullname", user.Profile.FullName),
                 new Claim("Username", user.UserName)
             };
 
@@ -30,7 +30,7 @@ namespace MessengerApplication.Helper
 
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
 
-            httpContextAccessor.HttpContext.Response.Cookies.Append("jwt_token", jwt, new CookieOptions
+            httpContextAccessor.HttpContext.Response.Cookies.Append("access_token", jwt, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = false,
