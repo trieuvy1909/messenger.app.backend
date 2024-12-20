@@ -9,12 +9,9 @@ public class ChatsService
     private readonly IMongoCollection<Chat> _chats;
     private readonly IMongoDatabase _mongoDatabase;
     private readonly UsersService _usersService;
-    private readonly ILogger<ChatsService> _logger;
 
-    public ChatsService(DatabaseProviderService databaseProvider, UsersService usersService,
-        ILogger<ChatsService> logger)
+    public ChatsService(DatabaseProviderService databaseProvider, UsersService usersService)
     {
-        _logger = logger;
         _usersService = usersService;
         _mongoDatabase = databaseProvider.GetAccess();
         _chats = _mongoDatabase.GetCollection<Chat>("Chats");
@@ -34,8 +31,19 @@ public class ChatsService
         if (chats.Count is 0) throw new ArgumentException("No chats yet");
         return chats;
     }
+    public async Task<Chat> GetChatOfUserById(string userId,string chatId)
+    {
+        var filter = Builders<Chat>.Filter.And(
+            Builders<Chat>.Filter.ElemMatch(chat => chat.Members, user => user.Id == userId),
+            Builders<Chat>.Filter.Eq(chat => chat.Id, chatId)
+        );        
+        var chat = await _chats.Find(filter)
+            .FirstOrDefaultAsync();
+        if (chat==null) throw new ArgumentException("No chats yet");
+        return chat;
+    }
     
-    public async Task CreateChatAsync(ChatDto chatDto)
+    public async Task<Chat> CreateChatAsync(ChatDto chatDto)
     {
         // Kiểm tra xem chat giữa các người dùng đã tồn tại chưa
         var filterOne = Builders<Chat>.Filter.And(
@@ -88,6 +96,8 @@ public class ChatsService
         {
             await _usersService.EditUsersChatsAsync(chatDtoForUser);
         }
+
+        return chat;
     }
     public async Task DeleteChatAsync(string chatId, string userId)
     {
@@ -116,5 +126,16 @@ public class ChatsService
         {
             await _usersService.DeleteUsersChatsAsync(chatDtoForUser);
         }
+    }
+    public async Task<List<string>> GetAllGroupChatId(string userId)
+    {
+        var filter = Builders<Chat>.Filter.And(
+            Builders<Chat>.Filter.ElemMatch(chat => chat.Members, user => user.Id == userId),
+            Builders<Chat>.Filter.SizeGt(chat => chat.Members, 2)
+        );
+        var chats = await _chats.Find(filter)
+            .Project(chat => chat.Id)
+            .ToListAsync();
+        return chats;
     }
 }

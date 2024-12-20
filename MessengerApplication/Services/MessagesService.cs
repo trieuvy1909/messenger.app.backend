@@ -41,10 +41,10 @@ public class MessagesService
                 newMessage.Recipient = recipients.First();
                 await _chatHub.SendMessageAsync(newMessage);
             }
-            // else if(recipients.Count > 1)
-            // {
-            //     await _chatHub.SendMessageToUsers(recipients, newMessage.Payload);
-            // }
+            else if(recipients.Count > 1)
+            {
+                await _chatHub.SendMessageToGroup(newMessage);
+            }
         }
         catch (Exception ex)
         {

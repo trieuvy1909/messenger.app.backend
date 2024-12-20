@@ -18,7 +18,7 @@ public class ChatController : ControllerBase
   }
   
   [Authorize]
-  [HttpGet("chats")]
+  [HttpGet("get-chats")]
   public async Task<IActionResult> GetAllChats(string userId)
   {
     try
@@ -33,6 +33,22 @@ public class ChatController : ControllerBase
     }
   }
 
+  [Authorize]
+  [HttpGet("get-chat-by-id")]
+  public async Task<IActionResult> GetAllChats(string userId,string chatId)
+  {
+    try
+    {
+      var chat = await _chatsService.GetChatOfUserById(userId,chatId);
+      
+      return Ok(chat);
+    }
+    catch (ArgumentException e)
+    {
+      return NotFound(e.Message);
+    }
+  }
+  
   [Authorize]
   [HttpPost("create")]
   public async Task<IActionResult> CreateChat(ChatDto parameter)
@@ -49,9 +65,7 @@ public class ChatController : ControllerBase
         Recipients = parameter.Recipients,
         Title = parameter.Title
       };
-
-      await _chatsService.CreateChatAsync(chatDto);
-      return Ok(new { message = "Chat created" });
+      return Ok(await _chatsService.CreateChatAsync(chatDto));
     }
     catch (ArgumentException e)
     {

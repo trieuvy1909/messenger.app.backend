@@ -28,7 +28,10 @@ builder.Services.AddCors(options =>
         {
             builder.WithOrigins(origins);
         }
-    });
+        builder.WithOrigins("http://localhost:8080")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+        });
 });
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();

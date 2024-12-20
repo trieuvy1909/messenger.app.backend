@@ -1,8 +1,10 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using MessengerApplication.Helper;
 using MessengerApplication.Models;
+using MessengerApplication.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Driver;
 
 namespace MessengerApplication.Hubs
 {
@@ -11,19 +13,21 @@ namespace MessengerApplication.Hubs
         private readonly IMemoryCache _memoryCache;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IHubContext<ChatHub> _hubContext;
+        private readonly ChatsService _chatsService;
 
-        public ChatHub(IMemoryCache memoryCache,IHttpContextAccessor httpContextAccessor,IHubContext<ChatHub> hubContext)
+        public ChatHub(IMemoryCache memoryCache,IHttpContextAccessor httpContextAccessor,IHubContext<ChatHub> hubContext,ChatsService chatsService)
         {
             _memoryCache = memoryCache;
             _httpContextAccessor = httpContextAccessor;
             _hubContext = hubContext;
+            _chatsService = chatsService;
         }
 
         // Lưu ConnectionId vào bộ nhớ khi người dùng kết nối
         public override async Task OnConnectedAsync()
         {
             var token = _httpContextAccessor.HttpContext?.Request.Cookies["access_token"]
-                        ?? _httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
+                        ?? _httpContextAccessor.HttpContext?.Request.Query.Where(q=>q.Key == "access_token").Select(q=>q.Value).FirstOrDefault();
 
             if (!string.IsNullOrEmpty(token))
             {
@@ -32,6 +36,11 @@ namespace MessengerApplication.Hubs
                 {
                     Console.WriteLine($"UserId: {userId}");
                     _memoryCache.Set(userId, Context.ConnectionId);
+                    var chatIds = await _chatsService.GetAllGroupChatId(userId);
+                    foreach (var chatId in chatIds)
+                    {
+                        await JoinGroup(chatId);
+                    }
                 }
             }
 
@@ -43,7 +52,8 @@ namespace MessengerApplication.Hubs
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             var token = _httpContextAccessor.HttpContext?.Request.Cookies["access_token"]
-                        ?? _httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
+                        ?? _httpContextAccessor.HttpContext?.Request.Query.Where(q=>q.Key == "access_token").Select(q=>q.Value).FirstOrDefault();
+            
             if (!string.IsNullOrEmpty(token))
             {
                 var userId = JwtToken.GetUserIdFromToken(token); 
@@ -51,6 +61,11 @@ namespace MessengerApplication.Hubs
                 {
                     Console.WriteLine($"UserId: {userId} is disconnecting.");
                     _memoryCache.Remove(userId);
+                    var chatIds = await _chatsService.GetAllGroupChatId(userId);
+                    foreach (var chatId in chatIds)
+                    {
+                        await LeaveGroup(chatId);
+                    }
                 }
             }
             
@@ -98,23 +113,45 @@ namespace MessengerApplication.Hubs
                 }
             }
         }
-        public async Task JoinGroup(string groupName)
+
+        private async Task JoinGroup(string chatId)
         {
-            await _hubContext.Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-            Console.WriteLine($"{Context.ConnectionId} joined group {groupName}");
+            try
+            {
+                await _hubContext.Groups.AddToGroupAsync(Context.ConnectionId, chatId);
+                Console.WriteLine($"{Context.ConnectionId} joined group {chatId}");
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Error join group: {ex.Message}");
+            }
         }
 
-        // Rời khỏi nhóm chat
-        public async Task LeaveGroup(string groupName)
+        private async Task LeaveGroup(string chatId)
         {
-            await _hubContext.Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-            Console.WriteLine($"{Context.ConnectionId} left group {groupName}");
+            try
+            {
+                await _hubContext.Groups.RemoveFromGroupAsync(Context.ConnectionId, chatId);
+                Console.WriteLine($"{Context.ConnectionId} left group {chatId}");
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Error leave group: {ex.Message}");
+            }
+            
         }
 
         // Gửi tin nhắn đến nhóm chat
-        public async Task SendMessageToGroup(string groupName, string message)
+        public async Task SendMessageToGroup(Message message)
         {
-            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveMessage", message);
+            try
+            {
+                await _hubContext.Clients.Group(message.ChatId).SendAsync("ReceiveMessage", message);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Error sending message to group: {ex.Message}");
+            }
         }
     }
 }
