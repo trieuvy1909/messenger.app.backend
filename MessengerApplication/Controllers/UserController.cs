@@ -98,7 +98,7 @@ public class UserController : ControllerBase
 
       var token = JwtToken.GenerateJwtToken(user,_httpContextAccessor);
 
-      return Ok(new { message = "Login successful.", token });
+      return Ok(new { message = "Login successful.", token, user });
    }
    
    [HttpGet("logout")]
