@@ -30,7 +30,7 @@ namespace MessengerApplication.Helper
 
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
 
-            httpContextAccessor.HttpContext.Response.Cookies.Append("access_token", jwt, new CookieOptions
+            httpContextAccessor.HttpContext?.Response.Cookies.Append("access_token", jwt, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = false,
