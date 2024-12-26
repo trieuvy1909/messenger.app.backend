@@ -35,7 +35,13 @@ namespace MessengerApplication.Hubs
                 if (!string.IsNullOrEmpty(userId))
                 {
                     Console.WriteLine($"UserId: {userId}");
-                    _memoryCache.Set(userId, Context.ConnectionId);
+                    if (!_memoryCache.TryGetValue(userId, out List<string>? connectionIds))
+                    {
+                        connectionIds = new List<string>();
+                    }
+                    connectionIds?.Add(Context.ConnectionId);
+                    _memoryCache.Set(userId, connectionIds);
+
                     var chatIds = await _chatsService.GetAllGroupChatId(userId);
                     foreach (var chatId in chatIds)
                     {
@@ -60,7 +66,18 @@ namespace MessengerApplication.Hubs
                 if (!string.IsNullOrEmpty(userId))
                 {
                     Console.WriteLine($"UserId: {userId} is disconnecting.");
-                    _memoryCache.Remove(userId);
+                    if (_memoryCache.TryGetValue(userId, out List<string>? connectionIds))
+                    {
+                        connectionIds?.Remove(Context.ConnectionId);
+                        if (connectionIds != null && connectionIds.Count == 0)
+                        {
+                            _memoryCache.Remove(userId);
+                        }
+                        else
+                        {
+                            _memoryCache.Set(userId, connectionIds);
+                        }
+                    }
                     var chatIds = await _chatsService.GetAllGroupChatId(userId);
                     foreach (var chatId in chatIds)
                     {
@@ -88,16 +105,21 @@ namespace MessengerApplication.Hubs
         // Phương thức gửi tin nhắn đến một người dùng
         public async Task SendMessageAsync(Message message)
         {
-            var connectionId = _memoryCache.Get<string>(message.Recipient.Id);
-            if (connectionId != null)
+            if (_memoryCache.TryGetValue(message.Recipient.Id, out List<string>? connectionIds))
             {
-                try
+                if (connectionIds != null)
                 {
-                    await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", message);
-                }
-                catch (Exception ex)
-                {
-                    throw new ArgumentException($"Error sending message: {ex.Message}");
+                    foreach (var connectionId in connectionIds)
+                    {
+                        try
+                        {
+                            await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", message);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ArgumentException($"Error sending message: {ex.Message}");
+                        }
+                    }
                 }
             }
         }
