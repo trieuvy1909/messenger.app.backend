@@ -75,11 +75,15 @@ public class ChatsService
                 users.Add(recipient);
             }
         }
+
+        var title = "";
+        title += initiator.Profile.FullName;
+        title = users.Aggregate(title, (current, user) => current + (", " + user.Profile.FullName));
         
         // Tạo đối tượng chat với các người dùng
         var chat = new Chat
         {
-            Title = chatDto.Title,
+            Title = chatDto.Title ?? title,
             Members = users,
             CreatedBy = initiator
         };

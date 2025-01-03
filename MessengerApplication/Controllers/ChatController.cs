@@ -19,8 +19,13 @@ public class ChatController : ControllerBase
   
   [Authorize]
   [HttpGet("get-chats")]
-  public async Task<IActionResult> GetAllChats(string userId)
+  public async Task<IActionResult> GetAllChats()
   {
+    var userId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+    if (string.IsNullOrEmpty(userId))
+    {
+      return BadRequest("You must be logged in to add a user to a chat.");
+    }
     try
     {
       var chats = await _chatsService.GetChatsOfUsersAsync(userId);
@@ -35,8 +40,13 @@ public class ChatController : ControllerBase
 
   [Authorize]
   [HttpGet("get-chat-by-id")]
-  public async Task<IActionResult> GetChatById(string userId,string chatId)
+  public async Task<IActionResult> GetChatById(string chatId)
   {
+    var userId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+    if (string.IsNullOrEmpty(userId))
+    {
+      return BadRequest("You must be logged in to add a user to a chat.");
+    }
     try
     {
       var chat = await _chatsService.GetChatOfUserById(userId,chatId);
@@ -53,6 +63,11 @@ public class ChatController : ControllerBase
   [HttpPost("create")]
   public async Task<IActionResult> CreateChat(ChatDto parameter)
   {
+    var userId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+    if (string.IsNullOrEmpty(userId))
+    {
+      return BadRequest("You must be logged in to add a user to a chat.");
+    }
     if (parameter.Recipients == null || parameter.Recipients.Count == 0)
     {
       return BadRequest("Recipients are required.");
@@ -61,7 +76,7 @@ public class ChatController : ControllerBase
     {
       var chatDto = new ChatDto
       {
-        Initiator = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value,
+        Initiator = userId,
         Recipients = parameter.Recipients,
         Title = parameter.Title
       };

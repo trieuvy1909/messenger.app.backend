@@ -17,6 +17,7 @@ public class UserSummary
     public string UserName { get; set; } = null!;
     public string Status { get; set; } = "online";
     public Profile Profile { get; set; } = new();
+    public bool IsAdmin { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 }
 public class Profile

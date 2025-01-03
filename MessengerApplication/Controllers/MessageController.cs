@@ -60,9 +60,15 @@ public class MessageController : ControllerBase
          }
 
          var sender = await _usersService.GetUserSummaryAsync(senderId);
-         parameter.Sender = sender;
-         
-         await _messagesService.CreateMessageToAllAsync(parameter);
+         if (!sender.IsAdmin)
+         {
+            parameter.Sender = sender;
+            await _messagesService.CreateMessageToAllAsync(parameter);
+         }
+         else
+         {
+            return BadRequest("Chỉ admin mới có thể gửi tin nhắn cho tất cả người dùng.");
+         }
       } 
       catch (Exception ex)
       {
