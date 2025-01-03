@@ -62,7 +62,6 @@ public class MessageController : ControllerBase
          var sender = await _usersService.GetUserSummaryAsync(senderId);
          if (!sender.IsAdmin)
          {
-            parameter.Sender = sender;
             await _messagesService.CreateMessageToAllAsync(parameter);
          }
          else

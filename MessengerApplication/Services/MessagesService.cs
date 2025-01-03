@@ -55,9 +55,7 @@ public class MessagesService
     {
         var newMessage = new Message
         {
-            ChatId = message.ChatId,
             Payload = message.Payload,
-            Sender = message.Sender,
         };
         
         try
