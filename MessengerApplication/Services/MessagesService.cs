@@ -3,6 +3,7 @@ using MessengerApplication.Hubs;
 using MessengerApplication.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace MessengerApplication.Services;
@@ -55,6 +56,8 @@ public class MessagesService
     {
         var newMessage = new Message
         {
+            Id = ObjectId.GenerateNewId().ToString(),
+            ChatId = "000",
             Payload = message.Payload,
         };
         
