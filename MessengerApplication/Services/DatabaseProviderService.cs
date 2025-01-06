@@ -10,8 +10,11 @@ public class DatabaseProviderService
     
     public DatabaseProviderService(IOptions<MessengerApplicationDatabaseSettings> messengerDatabaseSettings)
     {
-        var mongoClient = new MongoClient(messengerDatabaseSettings.Value.ConnectionString);
-        _mongoDatabase = mongoClient.GetDatabase(messengerDatabaseSettings.Value.DatabaseName);
+        var connectionString = messengerDatabaseSettings.Value.ConnectionString
+            .Replace("${CONNECTION_STRING}", Environment.GetEnvironmentVariable("CONNECTION_STRING"));
+        var databaseName = messengerDatabaseSettings.Value.DatabaseName.Replace("${DB_NAME}", Environment.GetEnvironmentVariable("DB_NAME"));
+        var mongoClient = new MongoClient(connectionString);
+        _mongoDatabase = mongoClient.GetDatabase(databaseName);
     }
 
     public IMongoDatabase GetAccess() => _mongoDatabase;

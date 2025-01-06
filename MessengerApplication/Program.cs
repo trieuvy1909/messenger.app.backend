@@ -1,4 +1,5 @@
 using System.Text;
+using DotNetEnv;
 using MessengerApplication.Hubs;
 using MessengerApplication.Models;
 using MessengerApplication.Services;
@@ -6,6 +7,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+Env.Load();
+builder.Configuration.AddEnvironmentVariables(); 
 var origins = "*";
 // Add services to the container.
 
