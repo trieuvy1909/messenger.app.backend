@@ -59,6 +59,18 @@ public class MessagesService
             Id = ObjectId.GenerateNewId().ToString(),
             ChatId = "000",
             Payload = message.Payload,
+            Sender = new UserSummary()
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                Profile = new Profile(){FullName = "Admin"},
+                IsAdmin = true,UserName = "admin"
+            },
+            Recipient = new UserSummary()
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                Profile = new Profile(){FullName = "All"},
+                IsAdmin = false,UserName = "all"
+            }
         };
         
         try
