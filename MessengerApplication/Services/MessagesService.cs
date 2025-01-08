@@ -1,6 +1,7 @@
 ﻿using MessengerApplication.Dtos;
 using MessengerApplication.Hubs;
 using MessengerApplication.Models;
+using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Bson;
@@ -8,48 +9,38 @@ using MongoDB.Driver;
 
 namespace MessengerApplication.Services;
 
-public class MessagesService
+public class MessagesService : IMessagesService
 {
     private readonly IMongoCollection<Message> _messages;
-    private readonly IMongoDatabase _mongoDatabase;
-    private readonly IMongoCollection<Chat> _chats;
     private readonly ChatHub _chatHub;
-    public MessagesService(DatabaseProviderService databaseProvider, IHubContext<ChatHub> hubContext, ChatsService chatsService, IMemoryCache memoryCache, ChatHub chatHub)
-    {
-        _mongoDatabase = databaseProvider.GetAccess();
-        _messages = _mongoDatabase.GetCollection<Message>("Messages");
-        _chats = _mongoDatabase.GetCollection<Chat>("Chats");
-        _chatHub = chatHub;
-    }
+    private readonly Lazy<IChatsService> _chatsService;
 
+    public MessagesService(DatabaseProviderService databaseProvider, ChatHub chatHub, Lazy<IChatsService> chatsService)
+    {
+        var mongoDatabase = databaseProvider.GetAccess();
+        _messages = mongoDatabase.GetCollection<Message>("Messages");
+        _chatHub = chatHub;
+        _chatsService = chatsService;
+    }
+    
     public async Task CreateMessageAsync(MessageDto message)
     {
         var newMessage = new Message
         {
             ChatId = message.ChatId,
-            Payload = message.Payload,
+            Content = message.Content,
             Sender = message.Sender,
         };
-
-        var recipients = await GetRecipient(message.Sender, message.ChatId);
-
+        var recipients = await _chatsService.Value.GetRecipient(message.Sender, message.ChatId);
         await _messages.InsertOneAsync(newMessage);
-
-        try
+        switch (recipients.Count)
         {
-            if (recipients.Count == 1)
-            {
-                newMessage.Recipient = recipients.First();
-                await _chatHub.SendMessageAsync(newMessage);
-            }
-            else if(recipients.Count > 1)
-            {
+            case 1:
+                await _chatHub.SendMessageAsync(newMessage, recipients[0].Id);
+                break;
+            case > 1:
                 await _chatHub.SendMessageToGroup(newMessage);
-            }
-        }
-        catch (Exception ex)
-        {
-            throw new ArgumentException(ex.Message);
+                break;
         }
     }
     public async Task CreateMessageToAllAsync(MessageDto message)
@@ -58,18 +49,12 @@ public class MessagesService
         {
             Id = ObjectId.GenerateNewId().ToString(),
             ChatId = "000",
-            Payload = message.Payload,
+            Content = message.Content,
             Sender = new UserSummary()
             {
                 Id = ObjectId.GenerateNewId().ToString(),
                 Profile = new Profile(){FullName = "Admin"},
                 IsAdmin = true,UserName = "admin"
-            },
-            Recipient = new UserSummary()
-            {
-                Id = ObjectId.GenerateNewId().ToString(),
-                Profile = new Profile(){FullName = "All"},
-                IsAdmin = false,UserName = "all"
             }
         };
         
@@ -88,20 +73,8 @@ public class MessagesService
             .SortBy(x => x.CreatedAt)
             .ToListAsync();
     }
-    
-    public async Task<List<UserSummary>> GetRecipient(UserSummary sender, string chatId)
-    {      
-        var chat = _chats.Find(x => x.Id.Equals(chatId)).FirstOrDefault();
-
-        if(chat is not null)
-        {
-            return chat.Members
-                .Where(member => member.Id != sender.Id)
-                .ToList();
-        }
-        else
-        {
-            throw new ArgumentException("No chat exists");
-        }
+    public async Task DeleteMessagesAsync(string chatId)
+    {
+        await _messages.DeleteManyAsync(x => x.ChatId.Equals(chatId));
     }
 }

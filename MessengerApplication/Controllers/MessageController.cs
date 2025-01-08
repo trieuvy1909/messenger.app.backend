@@ -1,5 +1,6 @@
 ﻿using MessengerApplication.Dtos;
 using MessengerApplication.Services;
+using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -11,9 +12,9 @@ namespace MessengerApplication.Controllers;
 [Route("/v1/api/message/")]
 public class MessageController : ControllerBase
 {
-   private readonly MessagesService _messagesService;
-   private readonly UsersService _usersService;
-   public MessageController(MessagesService messagesService, UsersService usersService)
+   private readonly IMessagesService _messagesService;
+   private readonly IUsersService _usersService;
+   public MessageController(IMessagesService messagesService, IUsersService usersService)
    {
       _messagesService = messagesService;
       _usersService = usersService;
@@ -40,14 +41,7 @@ public class MessageController : ControllerBase
       }
       return Ok("Gửi tin nhắn thành công");
    }
-
-   [HttpGet("receive")]
-   public async Task<IActionResult> ReceiveMessages(string chatId)
-   {
-      var messages = await _messagesService.GetMessagesAsync(chatId);
-
-      return Ok(messages);
-   }
+   
    [HttpPost("send-all")]
    public async Task<IActionResult> SendMessageToAll(MessageDto parameter)
    {

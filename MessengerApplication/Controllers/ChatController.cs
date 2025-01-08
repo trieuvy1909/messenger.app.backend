@@ -1,5 +1,6 @@
 ﻿using MessengerApplication.Dtos;
 using MessengerApplication.Services;
+using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +11,9 @@ namespace MessengerApplication.Controllers;
 [Route("/v1/api/chats/")]
 public class ChatController : ControllerBase
 {
-  private readonly ChatsService _chatsService;
+  private readonly IChatsService _chatsService;
   
-  public ChatController(ChatsService chatsService)
+  public ChatController(IChatsService chatsService)
   {
     _chatsService = chatsService;
   }
@@ -31,27 +32,6 @@ public class ChatController : ControllerBase
       var chats = await _chatsService.GetChatsOfUsersAsync(userId);
       
       return Ok(chats);
-    }
-    catch (ArgumentException e)
-    {
-      return NotFound(e.Message);
-    }
-  }
-
-  [Authorize]
-  [HttpGet("get-chat-by-id")]
-  public async Task<IActionResult> GetChatById(string chatId)
-  {
-    var userId = User.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
-    if (string.IsNullOrEmpty(userId))
-    {
-      return BadRequest("You must be logged in to add a user to a chat.");
-    }
-    try
-    {
-      var chat = await _chatsService.GetChatOfUserById(userId,chatId);
-      
-      return Ok(chat);
     }
     catch (ArgumentException e)
     {
@@ -78,13 +58,13 @@ public class ChatController : ControllerBase
       {
         Initiator = userId,
         Recipients = parameter.Recipients,
-        Title = parameter.Title
+        Name = parameter.Name
       };
       return Ok(await _chatsService.CreateChatAsync(chatDto));
     }
-    catch (ArgumentException e)
+    catch (Exception e)
     {
-      return Ok(e.Message);
+      return BadRequest(e.Message);
     }
   }
   

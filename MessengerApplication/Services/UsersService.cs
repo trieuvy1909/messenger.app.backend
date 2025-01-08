@@ -1,5 +1,6 @@
 ﻿using MessengerApplication.Dtos;
 using MessengerApplication.Models;
+using MessengerApplication.Services.Interface;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -7,20 +8,17 @@ using MongoDB.Driver;
 
 namespace MessengerApplication.Services;
 
-public class UsersService
+public class UsersService : IUsersService
 {
     private readonly IMongoCollection<User> _users;
     private readonly IMongoDatabase _mongoDatabase;
-    
     public UsersService(DatabaseProviderService databaseProvider)
     {
         _mongoDatabase = databaseProvider.GetAccess();
         _users = _mongoDatabase.GetCollection<User>("Users");
     }
-
     public async Task CreateAsync(User newUser) =>
         await _users.InsertOneAsync(newUser);
-
     public async Task<(List<User> Users, long TotalCount)> GetAllAsync(int page, int pageSize)
     {
         var users = await _users
@@ -39,7 +37,6 @@ public class UsersService
         var totalCount = await _users.CountDocumentsAsync(new BsonDocument());
         return (users, totalCount);
     }
-    
     public async Task<User> GetUserAsync(string userId)
     {
         return _users.Find(x => x.Id.Equals(userId))
@@ -65,7 +62,6 @@ public class UsersService
             .FirstOrDefault();
     }
     public User GetUser(string userId) => _users.Find(x => x.Id.Equals(userId)).FirstOrDefault();
-    
     public async Task EditUsersChatsAsync(AddChatDto chatDto)
     {
         var user = await _users.Find(x=>x.Id.Equals(chatDto.UserId)).SingleAsync();

@@ -18,6 +18,7 @@ public class UserSummary
     public string Status { get; set; } = "online";
     public Profile Profile { get; set; } = new();
     public bool IsAdmin { get; set; } = false;
+    [BsonRepresentation(BsonType.DateTime)]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 }
 public class Profile

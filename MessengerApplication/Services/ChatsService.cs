@@ -1,48 +1,37 @@
 ﻿using MessengerApplication.Dtos;
 using MessengerApplication.Models;
+using MessengerApplication.Services.Interface;
 using MongoDB.Driver;
 
 namespace MessengerApplication.Services;
 
-public class ChatsService
+public class ChatsService : IChatsService
 {
     private readonly IMongoCollection<Chat> _chats;
-    private readonly IMongoDatabase _mongoDatabase;
-    private readonly UsersService _usersService;
+    private readonly IUsersService _usersService;
+    private readonly  Lazy<IMessagesService> _messagesService;
 
-    public ChatsService(DatabaseProviderService databaseProvider, UsersService usersService)
+    public ChatsService(DatabaseProviderService databaseProvider, 
+        IUsersService usersService,  Lazy<IMessagesService> messagesService)
     {
+        var mongoDatabase = databaseProvider.GetAccess();
+        _chats = mongoDatabase.GetCollection<Chat>("Chats");
+        _messagesService = messagesService;
         _usersService = usersService;
-        _mongoDatabase = databaseProvider.GetAccess();
-        _chats = _mongoDatabase.GetCollection<Chat>("Chats");
     }
     public async Task<List<Chat>> GetChatsOfUsersAsync(string userId)
     {
         var filter = Builders<Chat>.Filter.ElemMatch(chat => chat.Members, user => user.Id == userId);
-        var chats = await _chats.Find(filter)
-            .Project(u => new Chat
-            {
-                Id = u.Id,
-                Title = u.Title,
-                CreatedBy = u.CreatedBy,
-                CreatedAt = u.CreatedAt
-            })
-            .ToListAsync();
+        var chats = await _chats.Find(filter).ToListAsync();
+        
+        foreach (var chat in chats)
+        {
+            chat.Messages = await _messagesService.Value.GetMessagesAsync(chat.Id);
+            chat.LastMessage = chat.Messages.LastOrDefault();
+        }
         if (chats.Count is 0) throw new ArgumentException("No chats yet");
         return chats;
     }
-    public async Task<Chat> GetChatOfUserById(string userId,string chatId)
-    {
-        var filter = Builders<Chat>.Filter.And(
-            Builders<Chat>.Filter.ElemMatch(chat => chat.Members, user => user.Id == userId),
-            Builders<Chat>.Filter.Eq(chat => chat.Id, chatId)
-        );        
-        var chat = await _chats.Find(filter)
-            .FirstOrDefaultAsync();
-        if (chat==null) throw new ArgumentException("No chats yet");
-        return chat;
-    }
-    
     public async Task<Chat> CreateChatAsync(ChatDto chatDto)
     {
         // Kiểm tra xem chat giữa các người dùng đã tồn tại chưa
@@ -83,7 +72,7 @@ public class ChatsService
         // Tạo đối tượng chat với các người dùng
         var chat = new Chat
         {
-            Title = chatDto.Title ?? title,
+            Name = chatDto.Name ?? title,
             Members = users,
             CreatedBy = initiator
         };
@@ -105,6 +94,7 @@ public class ChatsService
     }
     public async Task DeleteChatAsync(string chatId, string userId)
     {
+        await _messagesService.Value.DeleteMessagesAsync(chatId);
         // Tìm chat trong cơ sở dữ liệu
         var chat = await _chats.Find(x => x.Id != null && x.Id.Equals(chatId)).FirstOrDefaultAsync();
         if (chat == null)
@@ -195,5 +185,13 @@ public class ChatsService
                 ChatId = chat.Id
             });
         }
+    }
+    public async Task<List<UserSummary>> GetRecipient(UserSummary sender, string chatId)
+    {
+        var chats = _chats.Find(x => x.Id != null && x.Id.Equals(chatId)).FirstOrDefault();
+        if(chats == null) throw new ArgumentException("Chat not found");
+        return chats.Members
+            .Where(member => member.Id != sender.Id)
+            .ToList();
     }
 }

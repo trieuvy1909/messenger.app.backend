@@ -6,5 +6,5 @@ public class MessageDto
 {
     public string? ChatId { get; set; }
     public UserSummary? Sender { get; set; } 
-    public string Payload { get; set; }
+    public string Content { get; set; }
 }

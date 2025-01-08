@@ -10,8 +10,11 @@ public class Message
     public string? Id { get; set; }
     public string ChatId { get; set; } = null!;
     public UserSummary Sender { get; set; } = null!;
-    public UserSummary Recipient { get; set; } = null!;
-    public string Payload { get; set; } = null!;
+    public string Content { get; set; } = null!;
+    public string Type { get; set; } = "text";
     [BsonRepresentation(BsonType.DateTime)]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
+    public int ReplyTo { get; set; } = -1;
+    public string? State { get; set; } = null;
+
 }

@@ -2,6 +2,7 @@
 using MessengerApplication.Helper;
 using MessengerApplication.Models;
 using MessengerApplication.Services;
+using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Driver;
@@ -13,9 +14,9 @@ namespace MessengerApplication.Hubs
         private readonly IMemoryCache _memoryCache;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IHubContext<ChatHub> _hubContext;
-        private readonly ChatsService _chatsService;
+        private readonly IChatsService _chatsService;
 
-        public ChatHub(IMemoryCache memoryCache,IHttpContextAccessor httpContextAccessor,IHubContext<ChatHub> hubContext,ChatsService chatsService)
+        public ChatHub(IMemoryCache memoryCache,IHttpContextAccessor httpContextAccessor,IHubContext<ChatHub> hubContext, IChatsService chatsService)
         {
             _memoryCache = memoryCache;
             _httpContextAccessor = httpContextAccessor;
@@ -103,9 +104,9 @@ namespace MessengerApplication.Hubs
         }
         
         // Phương thức gửi tin nhắn đến một người dùng
-        public async Task SendMessageAsync(Message message)
+        public async Task SendMessageAsync(Message message,string recipientId)
         {
-            if (_memoryCache.TryGetValue(message.Recipient.Id, out List<string>? connectionIds))
+            if (_memoryCache.TryGetValue(recipientId, out List<string>? connectionIds))
             {
                 if (connectionIds != null)
                 {

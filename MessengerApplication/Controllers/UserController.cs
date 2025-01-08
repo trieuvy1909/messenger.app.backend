@@ -4,6 +4,7 @@ using MessengerApplication.Services;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using MessengerApplication.Helper;
+using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 
 namespace MessengerApplication.Controllers;
@@ -12,10 +13,10 @@ namespace MessengerApplication.Controllers;
 [Route("/v1/api/users/")]
 public class UserController : ControllerBase
 {
-   private readonly UsersService _usersService;
+   private readonly IUsersService _usersService;
    private readonly IHttpContextAccessor _httpContextAccessor;
    
-   public UserController(UsersService usersService,IHttpContextAccessor httpContextAccessor)
+   public UserController(IUsersService usersService,IHttpContextAccessor httpContextAccessor)
    {
       _usersService = usersService;
       _httpContextAccessor = httpContextAccessor;

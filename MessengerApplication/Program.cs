@@ -3,6 +3,7 @@ using DotNetEnv;
 using MessengerApplication.Hubs;
 using MessengerApplication.Models;
 using MessengerApplication.Services;
+using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -20,7 +21,7 @@ builder.Services.AddCors(options =>
         builder.AllowAnyMethod();
         if (origins is not { Length: > 0 }) return;
 
-        if (origins.Contains("*"))
+        if (origins.Contains('*'))
         {
             builder.AllowAnyHeader();
             builder.AllowAnyMethod();
@@ -42,12 +43,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.Configure<MessengerApplicationDatabaseSettings>(
     builder.Configuration.GetSection("MessengerApplicationDatabase"));
-builder.Services.AddScoped<UsersService>();
+builder.Services.AddScoped<IUsersService,UsersService>();
+builder.Services.AddScoped<IChatsService,ChatsService>();
+builder.Services.AddScoped<IMessagesService,MessagesService>();
 builder.Services.AddScoped<DatabaseProviderService>();
-builder.Services.AddScoped<ChatsService>();
-builder.Services.AddScoped<MessagesService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<ChatHub>();
+builder.Services.AddScoped(provider => new Lazy<IChatsService>(provider.GetRequiredService<IChatsService>));
+builder.Services.AddScoped(provider => new Lazy<IMessagesService>(provider.GetRequiredService<IMessagesService>));
 builder.Services.AddRouting();
 builder.Services.AddMemoryCache();
 builder.Services.AddAuthentication(options =>
