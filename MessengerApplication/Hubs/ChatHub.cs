@@ -1,27 +1,28 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Collections.Concurrent;
+using System.IdentityModel.Tokens.Jwt;
 using MessengerApplication.Helper;
 using MessengerApplication.Models;
 using MessengerApplication.Services;
 using MessengerApplication.Services.Interface;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Driver;
 
 namespace MessengerApplication.Hubs
 {
     public class ChatHub : Hub
     {
-        private readonly IMemoryCache _memoryCache;
+        private readonly ConnectionMapping _connectionMapping;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IHubContext<ChatHub> _hubContext;
         private readonly IChatsService _chatsService;
 
-        public ChatHub(IMemoryCache memoryCache,IHttpContextAccessor httpContextAccessor,IHubContext<ChatHub> hubContext, IChatsService chatsService)
+        public ChatHub(IHttpContextAccessor httpContextAccessor,IHubContext<ChatHub> hubContext, 
+            IChatsService chatsService, ConnectionMapping connectionMapping)
         {
-            _memoryCache = memoryCache;
             _httpContextAccessor = httpContextAccessor;
             _hubContext = hubContext;
             _chatsService = chatsService;
+            _connectionMapping = connectionMapping;
         }
 
         // Lưu ConnectionId vào bộ nhớ khi người dùng kết nối
@@ -35,13 +36,8 @@ namespace MessengerApplication.Hubs
                 var userId = JwtToken.GetUserIdFromToken(token); 
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    Console.WriteLine($"UserId: {userId}");
-                    if (!_memoryCache.TryGetValue(userId, out List<string>? connectionIds))
-                    {
-                        connectionIds = new List<string>();
-                    }
-                    connectionIds?.Add(Context.ConnectionId);
-                    _memoryCache.Set(userId, connectionIds);
+                    Console.WriteLine($"UserId: {userId} is connecting to {Context.ConnectionId}");
+                    _connectionMapping.Add(userId, Context.ConnectionId);
 
                     var chatIds = await _chatsService.GetAllGroupChatId(userId);
                     foreach (var chatId in chatIds)
@@ -66,19 +62,9 @@ namespace MessengerApplication.Hubs
                 var userId = JwtToken.GetUserIdFromToken(token); 
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    Console.WriteLine($"UserId: {userId} is disconnecting.");
-                    if (_memoryCache.TryGetValue(userId, out List<string>? connectionIds))
-                    {
-                        connectionIds?.Remove(Context.ConnectionId);
-                        if (connectionIds != null && connectionIds.Count == 0)
-                        {
-                            _memoryCache.Remove(userId);
-                        }
-                        else
-                        {
-                            _memoryCache.Set(userId, connectionIds);
-                        }
-                    }
+                    Console.WriteLine($"UserId: {userId} is disconnecting from {Context.ConnectionId}");
+                    _connectionMapping.Remove(userId, Context.ConnectionId);
+                    
                     var chatIds = await _chatsService.GetAllGroupChatId(userId);
                     foreach (var chatId in chatIds)
                     {
@@ -104,39 +90,35 @@ namespace MessengerApplication.Hubs
         }
         
         // Phương thức gửi tin nhắn đến một người dùng
-        public async Task SendMessageAsync(Message message,string recipientId)
+        public async Task SendMessageAsync(Message message,string senderId, string recipientId)
         {
-            if (_memoryCache.TryGetValue(recipientId, out List<string>? connectionIds))
+            var senderConnectionIds = _connectionMapping.GetConnections(senderId);
+            var connectionIds = _connectionMapping.GetConnections(recipientId);
+            if (senderConnectionIds != null) connectionIds?.AddRange(senderConnectionIds);
+
+            if (connectionIds == null || connectionIds.Count == 0)
             {
-                if (connectionIds != null)
-                {
-                    foreach (var connectionId in connectionIds)
-                    {
-                        try
-                        {
-                            await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", message);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new ArgumentException($"Error sending message: {ex.Message}");
-                        }
-                    }
-                }
+                return;
             }
-        }
-        // Phương thức gửi tin nhắn đến một vài người dùng
-        public async Task SendMessageToUsers(List<string> userIds, string message)
-        {
-            foreach (var userId in userIds)
+
+            // Khởi tạo và thực thi tác vụ gửi tin nhắn
+            var tasks = connectionIds.Select(async connectionId =>
             {
-                var connectionId = _memoryCache.Get<string>(userId);
-                if (connectionId != null)
+                try
                 {
                     await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", message);
                 }
-            }
-        }
+                catch (Exception ex)
+                {
+                    // Log lỗi cho từng kết nối
+                    Console.WriteLine($"Error sending message to connection {connectionId}: {ex.Message}");
+                }
+            });
 
+            // Chờ tất cả tác vụ hoàn thành
+            await Task.WhenAll(tasks);
+        }
+        
         private async Task JoinGroup(string chatId)
         {
             try

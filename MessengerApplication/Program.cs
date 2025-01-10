@@ -52,7 +52,12 @@ builder.Services.AddScoped<ChatHub>();
 builder.Services.AddScoped(provider => new Lazy<IChatsService>(provider.GetRequiredService<IChatsService>));
 builder.Services.AddScoped(provider => new Lazy<IMessagesService>(provider.GetRequiredService<IMessagesService>));
 builder.Services.AddRouting();
-builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ConnectionMapping>();
+builder.Services.AddLogging(config =>
+{
+    config.AddConsole();
+    config.AddDebug();
+});
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

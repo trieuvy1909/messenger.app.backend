@@ -27,16 +27,17 @@ public class MessagesService : IMessagesService
     {
         var newMessage = new Message
         {
+            Id = ObjectId.GenerateNewId().ToString(),
             ChatId = message.ChatId,
             Content = message.Content,
             Sender = message.Sender,
         };
-        var recipients = await _chatsService.Value.GetRecipient(message.Sender, message.ChatId);
         await _messages.InsertOneAsync(newMessage);
+        var recipients = await _chatsService.Value.GetRecipient(message.Sender, message.ChatId);
         switch (recipients.Count)
         {
             case 1:
-                await _chatHub.SendMessageAsync(newMessage, recipients[0].Id);
+                await _chatHub.SendMessageAsync(newMessage,message.Sender.Id, recipients[0].Id);
                 break;
             case > 1:
                 await _chatHub.SendMessageToGroup(newMessage);
@@ -70,7 +71,6 @@ public class MessagesService : IMessagesService
     public async Task<List<Message>> GetMessagesAsync(string chatId)
     {
         return await _messages.Find(x => x.ChatId.Equals(chatId))
-            .SortBy(x => x.CreatedAt)
             .ToListAsync();
     }
     public async Task DeleteMessagesAsync(string chatId)

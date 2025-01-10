@@ -23,11 +23,19 @@ public class ChatsService : IChatsService
     {
         var filter = Builders<Chat>.Filter.ElemMatch(chat => chat.Members, user => user.Id == userId);
         var chats = await _chats.Find(filter).ToListAsync();
-        
-        foreach (var chat in chats)
+
+        foreach (var chat in chats.ToList())
         {
-            chat.Messages = await _messagesService.Value.GetMessagesAsync(chat.Id);
-            chat.LastMessage = chat.Messages.LastOrDefault();
+            var messages = await _messagesService.Value.GetMessagesAsync(chat.Id);
+            if(messages.Count > 0)
+            {
+                chat.Messages = messages;
+                chat.LastMessage = messages.LastOrDefault();
+            }
+            else
+            {
+                chats.Remove(chat);
+            }
         }
         if (chats.Count is 0) throw new ArgumentException("No chats yet");
         return chats;

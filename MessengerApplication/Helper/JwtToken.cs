@@ -33,8 +33,8 @@ namespace MessengerApplication.Helper
             httpContextAccessor.HttpContext?.Response.Cookies.Append("access_token", jwt, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
+                Secure = true,
+                SameSite = SameSiteMode.None,
                 Expires = DateTime.Now.AddDays(7)
             });
 

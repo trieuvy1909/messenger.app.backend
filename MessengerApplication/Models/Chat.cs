@@ -14,13 +14,12 @@ public class Chat
     public UserSummary? CreatedBy { get; set; }
     public Message? LastMessage { get; set; } = null!;
     public List<Message>? Messages { get; set; } = [];
-    public string? Type { get; set; }
-    public string? Avatar { get; set; } = null!;
+    public string Type { get; set; } = "couple";
+    public string Avatar { get; set; } = "https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/Anh-avatar-hoat-hinh-de-thuong-xinh-xan.jpg?1704788263223";
     public Message? PinnedMessage { get; set; }
     public bool PinnedMessageHidden { get; set; } = false;
     public Message? ReplyMessage { get; set; }
     public int Unread { get;set; } = 0;
-    public string DraftMessage { get; set; } = "";
-    [BsonRepresentation(BsonType.DateTime)]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
+    [BsonElement("CreatedAt")]
+    public string CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7).ToString("HH:mm dd/MM/yyyy");
 }

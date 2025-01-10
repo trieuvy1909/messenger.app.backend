@@ -9,7 +9,6 @@ public class ChatDto
     public string? Name { get; set; }
     public List<string>? Recipients { get; set; }
     public UserSummary? CreatedBy { get; set; }
-    public DateTime CreatedAt { get; set; }
 }
 public class AddChatDto
 {

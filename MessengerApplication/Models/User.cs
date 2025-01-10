@@ -18,13 +18,13 @@ public class UserSummary
     public string Status { get; set; } = "online";
     public Profile Profile { get; set; } = new();
     public bool IsAdmin { get; set; } = false;
-    [BsonRepresentation(BsonType.DateTime)]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
+    [BsonElement("CreatedAt")]
+    public string CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7).ToString("HH:mm dd/MM/yyyy");
 }
 public class Profile
 {
     public string FullName { get; set; } = null!;
-    public string Avatar { get; set; } = null!;
+    public string Avatar { get; set; } = "https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/Anh-avatar-hoat-hinh-de-thuong-xinh-xan.jpg?1704788263223";
     public string Bio { get; set; } = null!;
 }
 
