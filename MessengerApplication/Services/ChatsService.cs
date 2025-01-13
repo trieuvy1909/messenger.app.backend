@@ -37,7 +37,6 @@ public class ChatsService : IChatsService
                 chats.Remove(chat);
             }
         }
-        if (chats.Count is 0) throw new ArgumentException("No chats yet");
         return chats;
     }
     public async Task<Chat> CreateChatAsync(ChatDto chatDto)

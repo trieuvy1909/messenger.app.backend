@@ -92,11 +92,19 @@ namespace MessengerApplication.Hubs
         // Phương thức gửi tin nhắn đến một người dùng
         public async Task SendMessageAsync(Message message,string senderId, string recipientId)
         {
+            var connectionIds = new List<string>();
             var senderConnectionIds = _connectionMapping.GetConnections(senderId);
-            var connectionIds = _connectionMapping.GetConnections(recipientId);
-            if (senderConnectionIds != null) connectionIds?.AddRange(senderConnectionIds);
+            var recipientConnectionIds = _connectionMapping.GetConnections(recipientId);
+            if (recipientConnectionIds != null)
+            {
+                connectionIds.AddRange(recipientConnectionIds);
+            }
+            if (senderConnectionIds != null)
+            {
+                connectionIds.AddRange(senderConnectionIds);
+            }
 
-            if (connectionIds == null || connectionIds.Count == 0)
+            if (connectionIds.Count == 0)
             {
                 return;
             }
