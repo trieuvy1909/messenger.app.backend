@@ -8,6 +8,7 @@ public class User :UserSummary
     public List<string> Chats { get; set; } = new();
     public string Password { get; set; } = null!;
     public List<Friends> Friends { get; set; } = new();
+    public Settings Settings { get; set; } = new();
 }
 public class UserSummary
 {
@@ -25,11 +26,22 @@ public class Profile
 {
     public string FullName { get; set; } = null!;
     public string Avatar { get; set; } = "https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/Anh-avatar-hoat-hinh-de-thuong-xinh-xan.jpg?1704788263223";
-    public string Bio { get; set; } = null!;
+    public string? Bio { get; set; }
 }
 
 public class Friends
 {
     public string UserId { get; set; } = null!;
     public string Status { get; set; } = null!;
+}
+public class Settings
+{
+    public bool LastSeen { get; set; } = false;
+    public bool ReadReceipt { get; set; } = false;
+    public bool JoiningGroups { get; set; } = false;
+    public bool PrivateMessages { get; set; } = false;
+    public bool DarkMode { get; set; } = false;
+    public bool BorderedTheme { get; set; } = false;
+    public bool AllowNotifications { get; set; } = false;
+    public bool KeepNotifications { get; set; } = false;
 }
