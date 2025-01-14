@@ -1,6 +1,5 @@
-**/.classpath
-**/.dockerignore
-**/.env
+﻿**/.dockerignore
+#**/.env
 **/.git
 **/.gitignore
 **/.project
@@ -8,6 +7,7 @@
 **/.toolstarget
 **/.vs
 **/.vscode
+**/.idea
 **/*.*proj.user
 **/*.dbmdl
 **/*.jfm
